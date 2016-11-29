@@ -1,0 +1,44 @@
+#!/usr/bin/env perl
+use strict;
+$|++;
+
+my $MobileSync = "$ENV{HOME}/Library/Application Support/MobileSync";
+
+if (not -d $MobileSync) {
+  print STDERR "No iOS backups found, exiting.\n";
+  exit(0);
+}
+
+if (not chdir $MobileSync) {
+  printf STDERR "FATAL: chdir failed with: %s\n", $!;
+  exit(1);
+}
+
+for my $plist (<Backup/*/Info.plist>) { #/ # unbreak syntax highlighting
+  open my $info, '<', $plist;
+  if (!$info) {
+    printf STDERR "ERROR: couldn't read [%s]: %s\n", $plist, $!;
+    next;
+  }
+
+  my $nameFlag = 0;
+  my $nameFound = 0;
+  while (my $line = <$info>) {
+    if ($line =~ /^\s+<key>Device Name<\/key>/) {
+      $nameFlag = $nameFound = 1;
+    } elsif ($nameFlag) {
+      (my $name = $line) =~ s/<.*?>//g;
+      $name =~ s/^\s+|\s+$//g;
+      print $name;
+      $nameFlag = 0;
+    }
+  }
+
+  if (not $nameFound) {
+    print "[No Name]";
+  }
+
+  (my $dir = $plist) =~ s(/[^/]+$)();
+  my $du = `du -sh $dir`;
+  printf "\tUsed: %s", $du;
+}
